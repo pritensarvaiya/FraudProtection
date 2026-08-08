@@ -80,3 +80,15 @@ run_case "12. Message - LOW RISK (family plans)" "Message" '"Hi Mum, dinner is a
 
 # 13. Url - LOW RISK, legitimate well-known domain
 run_case "13. Url - LOW RISK (legitimate domain)" "Url" '"https://github.com/"'
+
+# ---------------------------------------------------------------------------
+# Email-specific checks: bank impersonation phishing with a sender mismatch,
+# and a legitimate order-shipped notification. secondaryContent carries the
+# sender address so the pipeline can flag domain/sender mismatches.
+# ---------------------------------------------------------------------------
+
+# 14. Email - HIGH RISK, HDFC net-banking phishing with sender mismatch
+run_case "14. Email - HIGH RISK (HDFC net banking)" "Email" '"Subject: Your HDFC Net Banking will be suspended\n\nDear Customer,\n\nWe have detected unusual activity on your HDFC Bank account. Your net banking access will be permanently suspended within 24 hours unless you verify your account immediately.\n\nClick here to verify: http://hdfc-secure-verify.tk/login\n\nYou will need to enter your Customer ID, password, and the OTP sent to your registered mobile number to complete verification.\n\nFailure to verify will result in permanent account closure.\n\nHDFC Bank Security Team"' '"security-alert@hdfc-verify-team.com"'
+
+# 15. Email - LOW RISK, legitimate order-shipped notification
+run_case "15. Email - LOW RISK (order shipped)" "Email" '"Subject: Your order #A1B2C3 has shipped\n\nHi Priya,\n\nGood news! Your order for a wireless mouse and USB-C cable has shipped and is expected to arrive on Tuesday, August 12.\n\nYou can track your package anytime from the Orders section of your account.\n\nThanks for shopping with us!\n\nCustomer Care Team"' '"orders@flipkart.com"'
