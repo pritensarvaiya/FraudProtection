@@ -25,7 +25,7 @@ public class FraudAnalysisService : IFraudAnalysisService
 
     public async Task<AnalyzeResponse> AnalyzeAsync(AnalyzeRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Content))
+        if (string.IsNullOrWhiteSpace(request.Content) && string.IsNullOrWhiteSpace(request.ImageBase64))
         {
             throw new ArgumentException("Content must not be empty.", nameof(request));
         }
@@ -34,7 +34,9 @@ public class FraudAnalysisService : IFraudAnalysisService
         {
             ["inputType"] = request.InputType.ToString(),
             ["content"] = request.Content,
-            ["secondaryContent"] = request.SecondaryContent
+            ["secondaryContent"] = request.SecondaryContent,
+            ["imageBase64"] = request.ImageBase64,
+            ["imageMimeType"] = request.ImageMimeType
         };
 
         var result = await _kernel.InvokeAsync("FraudAnalysis", "analyze_content", arguments);
@@ -64,11 +66,15 @@ public class FraudAnalysisService : IFraudAnalysisService
             AnalyzedAtUtc = analyzedAt
         };
 
+        var contentPreview = !string.IsNullOrWhiteSpace(request.Content)
+            ? (request.Content.Length > 120 ? request.Content[..120] + "…" : request.Content)
+            : "[Screenshot image]";
+
         _historyService.AddCase(new AnalyzedCase
         {
             CaseId = caseId,
             InputType = request.InputType,
-            ContentPreview = request.Content.Length > 120 ? request.Content[..120] + "…" : request.Content,
+            ContentPreview = contentPreview,
             RiskLevel = riskLevel,
             RiskScore = response.RiskScore,
             AnalyzedAtUtc = analyzedAt

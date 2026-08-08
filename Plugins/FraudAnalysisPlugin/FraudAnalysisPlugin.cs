@@ -21,18 +21,42 @@ public class FraudAnalysisPlugin
     public async Task<string> AnalyzeContentAsync(
         [Description("The type of input being analysed: message, email, url, or screenshot")] string inputType,
         [Description("The primary text content to analyse")] string content,
-        [Description("Optional secondary context, e.g. sender address or accompanying message")] string? secondaryContent = null)
+        [Description("Optional secondary context, e.g. sender address or accompanying message")] string? secondaryContent = null,
+        [Description("Optional base64-encoded screenshot image, no data: URI prefix")] string? imageBase64 = null,
+        [Description("MIME type of imageBase64, e.g. image/png")] string? imageMimeType = null)
     {
         var chatHistory = new ChatHistory();
         chatHistory.AddSystemMessage(FraudAnalysisSystemPrompt.Instructions);
 
-        var userPrompt = $"Input type: {inputType}\n\nPrimary content:\n{content}";
+        var userPrompt = $"Input type: {inputType}";
+        if (!string.IsNullOrWhiteSpace(imageBase64))
+        {
+            userPrompt += "\n\nA screenshot image is attached. Read the visible text in the image yourself " +
+                "(treat it as the primary content) and analyse it for fraud/scam indicators.";
+        }
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            userPrompt += $"\n\nPrimary content:\n{content}";
+        }
         if (!string.IsNullOrWhiteSpace(secondaryContent))
         {
             userPrompt += $"\n\nSecondary content:\n{secondaryContent}";
         }
 
-        chatHistory.AddUserMessage(userPrompt);
+        if (!string.IsNullOrWhiteSpace(imageBase64))
+        {
+            var imageBytes = Convert.FromBase64String(imageBase64);
+            var collection = new ChatMessageContentItemCollection
+            {
+                new TextContent(userPrompt),
+                new ImageContent(imageBytes, string.IsNullOrWhiteSpace(imageMimeType) ? "image/png" : imageMimeType)
+            };
+            chatHistory.AddUserMessage(collection);
+        }
+        else
+        {
+            chatHistory.AddUserMessage(userPrompt);
+        }
 
         var response = await _chatCompletionService.GetChatMessageContentsAsync(chatHistory);
         var rawText = response.FirstOrDefault()?.Content ?? "{}";

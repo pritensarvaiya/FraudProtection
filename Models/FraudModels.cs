@@ -24,6 +24,12 @@ public class AnalyzeRequest
 
     /// <summary>Optional second input for MVP's "accept two inputs" requirement (e.g. sender + message, or URL + message).</summary>
     public string? SecondaryContent { get; set; }
+
+    /// <summary>Base64-encoded screenshot image data (no data: URI prefix), sent so the model can read the text directly.</summary>
+    public string? ImageBase64 { get; set; }
+
+    /// <summary>MIME type of <see cref="ImageBase64"/>, e.g. "image/png".</summary>
+    public string? ImageMimeType { get; set; }
 }
 
 public class EvidenceItem

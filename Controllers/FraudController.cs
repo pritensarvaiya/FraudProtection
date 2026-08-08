@@ -26,7 +26,7 @@ public class FraudController : ControllerBase
     [HttpPost("analyze")]
     public async Task<ActionResult<AnalyzeResponse>> Analyze([FromBody] AnalyzeRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Content))
+        if (string.IsNullOrWhiteSpace(request.Content) && string.IsNullOrWhiteSpace(request.ImageBase64))
         {
             return BadRequest(new { error = "Content is required." });
         }

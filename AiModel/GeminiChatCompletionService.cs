@@ -106,11 +106,46 @@ public class GeminiChatCompletionService : IChatCompletionService
             contents.Add(new GeminiContent
             {
                 Role = role,
-                Parts = [new GeminiPart { Text = message.Content ?? string.Empty }]
+                Parts = BuildGeminiParts(message)
             });
         }
 
         return (systemInstruction, contents);
+    }
+
+    private static List<GeminiPart> BuildGeminiParts(ChatMessageContent message)
+    {
+        var parts = new List<GeminiPart>();
+
+        if (message.Items is { Count: > 0 })
+        {
+            foreach (var item in message.Items)
+            {
+                switch (item)
+                {
+                    case TextContent text when !string.IsNullOrEmpty(text.Text):
+                        parts.Add(new GeminiPart { Text = text.Text });
+                        break;
+                    case ImageContent image when image.Data is { Length: > 0 } data:
+                        parts.Add(new GeminiPart
+                        {
+                            InlineData = new GeminiInlineData
+                            {
+                                MimeType = image.MimeType ?? "image/png",
+                                Data = Convert.ToBase64String(data.ToArray())
+                            }
+                        });
+                        break;
+                }
+            }
+        }
+
+        if (parts.Count == 0)
+        {
+            parts.Add(new GeminiPart { Text = message.Content ?? string.Empty });
+        }
+
+        return parts;
     }
 }
 
@@ -147,7 +182,19 @@ public class GeminiContent
 public class GeminiPart
 {
     [JsonPropertyName("text")]
-    public string Text { get; set; } = string.Empty;
+    public string? Text { get; set; }
+
+    [JsonPropertyName("inline_data")]
+    public GeminiInlineData? InlineData { get; set; }
+}
+
+public class GeminiInlineData
+{
+    [JsonPropertyName("mime_type")]
+    public string MimeType { get; set; } = string.Empty;
+
+    [JsonPropertyName("data")]
+    public string Data { get; set; } = string.Empty;
 }
 
 public class GeminiResponse
