@@ -37,7 +37,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design.
    {
      "Gemini": {
        "ApiKey": "<your-gemini-api-key>",
-       "Model": "gemini-2.0-flash"
+       "Model": "gemini-3.1-flash-lite"
      }
    }
    ```
@@ -88,12 +88,45 @@ curl -X POST http://localhost:5199/api/fraud/analyze \
 }
 ```
 
+## Testing
+
+`scripts/test-matrix.sh` runs an end-to-end verification matrix against a running instance of the
+API: one **fraud (positive)** and one **safe (negative)** example for each of the four input types
+(Message, Email, Url, Screenshot) — 8 cases total, covering the full
+Semantic Kernel → Gemini → risk-mapping pipeline in one pass.
+
+```bash
+# with the API already running on http://localhost:5199
+bash scripts/test-matrix.sh
+
+# or against a different host/port
+BASE_URL=http://localhost:5000 bash scripts/test-matrix.sh
+```
+
+Expected outcome — the fraud cases should classify `High` (score ~90+) and the safe cases should
+classify `Low` (score under ~20), with `evidence` snippets that are real substrings of the input
+you sent, not invented text:
+
+| # | Input type | Scenario | Expected |
+|---|---|---|---|
+| 1 | Message | Fake SIM/KYC-block phishing | High |
+| 2 | Message | Casual meeting confirmation | Low |
+| 3 | Email | Fake delivery-fee scam impersonating a courier/retailer | High |
+| 4 | Email | Legitimate invoice email | Low |
+| 5 | Url | Typosquatted login-phishing domain | High |
+| 6 | Url | Reputable public website | Low |
+| 7 | Screenshot | Lottery/advance-fee scam text | High |
+| 8 | Screenshot | Innocuous social DM | Low |
+
+This is a manual smoke test, not an automated test suite — there is no CI wiring or assertions;
+read the printed JSON per case and compare `riskLevel`/`riskScore` against the table above.
+
 ## Configuration reference
 
 | Key | Description | Default |
 |---|---|---|
 | `Gemini:ApiKey` | Google Gemini API key (required) | — |
-| `Gemini:Model` | Gemini model name | `gemini-2.0-flash` |
+| `Gemini:Model` | Gemini model name | `gemini-3.1-flash-lite` |
 
 ## Known limits
 
