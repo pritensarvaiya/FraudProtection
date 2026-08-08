@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json.Serialization;
 using FraudProtection.AiModel;
 using FraudProtection.Services.FraudAnalysisService;
@@ -20,12 +22,39 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<IHistoryService, HistoryService>();
 
-builder.Services.AddSingleton<IChatCompletionService>(_ =>
+// On this network, outbound IPv6 to Google's endpoints is silently blackholed, and .NET's
+// Happy-Eyeballs fallback to IPv4 does not kick in fast enough — the connection just hangs
+// until HttpClient.Timeout elapses (curl, which tries IPv4 in parallel, is unaffected). The
+// ConnectCallback below forces every connection through this handler to resolve and dial IPv4
+// only, which is the actual fix; do not remove it without re-testing on this network.
+builder.Services.AddHttpClient("Gemini")
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        ConnectCallback = async (context, cancellationToken) =>
+        {
+            var entry = await Dns.GetHostEntryAsync(context.DnsEndPoint.Host, AddressFamily.InterNetwork, cancellationToken);
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(entry.AddressList[0], context.DnsEndPoint.Port), cancellationToken);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+    });
+
+builder.Services.AddSingleton<IChatCompletionService>(sp =>
 {
     var apiKey = builder.Configuration["Gemini:ApiKey"]
         ?? throw new InvalidOperationException("Gemini:ApiKey is not configured. Set it via appsettings.Development.json or user-secrets.");
     var model = builder.Configuration["Gemini:Model"] ?? "gemini-2.0-flash";
-    return new GeminiChatCompletionService(apiKey, model);
+    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gemini");
+    httpClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+    return new GeminiChatCompletionService(apiKey, model, httpClient);
 });
 
 builder.Services.AddScoped<FraudProtection.Plugins.FraudAnalysisPlugin.FraudAnalysisPlugin>();

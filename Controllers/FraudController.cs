@@ -36,6 +36,11 @@ public class FraudController : ControllerBase
             var result = await _fraudAnalysisService.AnalyzeAsync(request);
             return Ok(result);
         }
+        catch (Exception ex) when (ex.InnerException is TimeoutException || ex is TimeoutException)
+        {
+            _logger.LogError(ex, "Fraud analysis timed out.");
+            return StatusCode(504, new { error = "The AI provider took too long to respond. Please try again." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fraud analysis failed.");

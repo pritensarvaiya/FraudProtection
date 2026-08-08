@@ -19,7 +19,7 @@ public class GeminiChatCompletionService : IChatCompletionService
 
     public IReadOnlyDictionary<string, object?> Attributes { get; } = new Dictionary<string, object?>();
 
-    public GeminiChatCompletionService(string apiKey, string model, HttpClient? httpClient = null)
+    public GeminiChatCompletionService(string apiKey, string model, HttpClient httpClient)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -28,7 +28,7 @@ public class GeminiChatCompletionService : IChatCompletionService
 
         _apiKey = apiKey;
         _model = model;
-        _httpClient = httpClient ?? new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/") };
+        _httpClient = httpClient;
     }
 
     public async Task<IReadOnlyList<ChatMessageContent>> GetChatMessageContentsAsync(
@@ -48,19 +48,30 @@ public class GeminiChatCompletionService : IChatCompletionService
 
         var requestUri = $"v1beta/models/{_model}:generateContent?key={_apiKey}";
 
-        using var response = await _httpClient.PostAsJsonAsync(requestUri, requestBody, GeminiJsonContext.Default.GeminiRequest, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"Gemini API request failed ({response.StatusCode}): {errorBody}");
+            response = await _httpClient.PostAsJsonAsync(requestUri, requestBody, GeminiJsonContext.Default.GeminiRequest, cancellationToken);
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException($"Gemini API did not respond within {_httpClient.Timeout.TotalSeconds:N0} seconds.", ex);
         }
 
-        var result = await response.Content.ReadFromJsonAsync(GeminiJsonContext.Default.GeminiResponse, cancellationToken);
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new InvalidOperationException($"Gemini API request failed ({response.StatusCode}): {errorBody}");
+            }
 
-        var text = result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? string.Empty;
+            var result = await response.Content.ReadFromJsonAsync(GeminiJsonContext.Default.GeminiResponse, cancellationToken);
 
-        return [new ChatMessageContent(AuthorRole.Assistant, text)];
+            var text = result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? string.Empty;
+
+            return [new ChatMessageContent(AuthorRole.Assistant, text)];
+        }
     }
 
     public async IAsyncEnumerable<StreamingChatMessageContent> GetStreamingChatMessageContentsAsync(
