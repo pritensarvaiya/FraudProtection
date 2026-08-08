@@ -53,7 +53,13 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowFrontend");
-app.UseHttpsRedirection();
+
+// In Development the SPA calls the API over plain HTTP; redirecting to the
+// self-signed HTTPS port makes those fetch() calls fail on the certificate.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthorization();
 app.MapControllers();
 
