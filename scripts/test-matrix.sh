@@ -53,3 +53,30 @@ run_case "7. Screenshot - FRAUD" "Screenshot" '"WhatsApp message screenshot text
 
 # 8. Screenshot - SAFE (negative)
 run_case "8. Screenshot - SAFE" "Screenshot" '"Instagram DM screenshot text: Hey! loved your photos from the trip, which app did you use to edit them?"'
+
+# ---------------------------------------------------------------------------
+# High-risk bank/KYC phishing, including non-English variants. These check that
+# the pipeline flags urgency + OTP requests + lookalike .tk domains regardless
+# of the language the lure is written in.
+# ---------------------------------------------------------------------------
+
+# 9. Message - HIGH RISK, English SBI KYC + OTP request
+run_case "9. Message - HIGH RISK (SBI KYC, English)" "Message" '"URGENT: Your SBI account has been suspended due to incomplete KYC. Verify within 24 hours at http://sbi-kyc-verify.tk/login or your account will be permanently blocked. Share your OTP to confirm identity."'
+
+# 10. Message - HIGH RISK, Hindi SBI KYC
+run_case "10. Message - HIGH RISK (SBI KYC, Hindi)" "Message" '"प्रिय ग्राहक, आपका SBI खाता 24 घंटे में बंद कर दिया जाएगा। तुरंत KYC अपडेट करें: http://sbi-kyc-update.tk/verify अन्यथा आपका खाता ब्लॉक हो जाएगा।"'
+
+# 11. Message - HIGH RISK, Gujarati bank KYC + OTP request
+run_case "11. Message - HIGH RISK (Bank KYC, Gujarati)" "Message" '"પ્રિય ગ્રાહક, તમારું બેંક ખાતું બંધ થઈ જશે. તાત્કાલિક KYC અપડેટ કરો: http://bank-verify.tk/kyc અને તમારો OTP શેર કરો."'
+
+# ---------------------------------------------------------------------------
+# Low-risk controls: benign personal message, and a legitimate well-known
+# domain. These guard against false positives - a link alone must not be
+# enough to raise the risk score.
+# ---------------------------------------------------------------------------
+
+# 12. Message - LOW RISK, benign family message
+run_case "12. Message - LOW RISK (family plans)" "Message" '"Hi Mum, dinner is at 7pm tonight. I will bring the dessert. See you soon!"'
+
+# 13. Url - LOW RISK, legitimate well-known domain
+run_case "13. Url - LOW RISK (legitimate domain)" "Url" '"https://github.com/"'
