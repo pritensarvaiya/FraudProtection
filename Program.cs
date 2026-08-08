@@ -9,16 +9,35 @@ using Microsoft.SemanticKernel.ChatCompletion;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway (and similar PaaS hosts) assign the listen port via the PORT env var at runtime.
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new() { Title = "ScamShield AI API", Version = "v1" }));
 
+var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]
+    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    ?? [];
+
 builder.Services.AddCors(options =>
-    options.AddPolicy("AllowFrontend", policy => policy
-        .AllowAnyOrigin()
-        .AllowAnyHeader()
-        .AllowAnyMethod()));
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+        }
+        else
+        {
+            // No Cors:AllowedOrigins configured (e.g. local dev) - fall back to permissive CORS.
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+    }));
 
 builder.Services.AddSingleton<IHistoryService, HistoryService>();
 
