@@ -1,3 +1,5 @@
+Hackathon link: https://notepad.pw/hackthons
+
 # ScamShield AI — Backend
 
 Multilingual digital fraud protection API. Analyses suspicious messages, emails, URLs, and
